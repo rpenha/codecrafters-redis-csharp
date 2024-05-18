@@ -1,13 +1,24 @@
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 Console.WriteLine("Logs from your program will appear here!");
 
 // Uncomment this block to pass the first stage
-var server = new TcpListener(IPAddress.Any, 6379);
+using var server = new TcpListener(IPAddress.Any, 6379);
 server.Start();
-var socket = server.AcceptSocket(); // wait for client
+using var socket = server.AcceptSocket(); // wait for client
 
-await socket.SendAsync("+PONG\r\n"u8.ToArray(), SocketFlags.None);
+var pong = "+PONG\r\n"u8.ToArray();
+const int bufferSize = 1024;
+
+
+while (socket.Connected)
+{
+    var buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+    await socket.ReceiveAsync(buffer, SocketFlags.None);
+    await socket.SendAsync(pong);
+    ArrayPool<byte>.Shared.Return(buffer);
+}
+
