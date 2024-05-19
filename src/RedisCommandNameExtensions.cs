@@ -6,4 +6,8 @@ public static class RedisCommandNameExtensions
     public static bool IsEcho(this RespBulkString input) => input.Is(RedisCommand.ECHO);
     
     public static bool IsPing(this RespBulkString input) => input.Is(RedisCommand.PING);
+    
+    public static bool IsSet(this RespBulkString input) => input.Is(RedisCommand.SET);
+    
+    public static bool IsGet(this RespBulkString input) => input.Is(RedisCommand.GET);
 }

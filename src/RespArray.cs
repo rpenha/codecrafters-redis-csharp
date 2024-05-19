@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Text;
 
 public sealed record RespArray : RespValue
@@ -23,7 +22,7 @@ public sealed record RespArray : RespValue
             .Append(ByteType)
             .Append(Count);
 
-        foreach (var item in _items ?? ReadOnlyCollection<RespValue>.Empty)
+        foreach (var item in _items ?? Array.Empty<RespValue>())
         {
             sb.Append(item.Encode());
         }

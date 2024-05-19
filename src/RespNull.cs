@@ -1,4 +1,4 @@
-public record RespNull : RespValue
+public sealed record RespNull : RespValue
 {
     private static readonly byte[] Value = @"_\r\n"u8.ToArray();
     

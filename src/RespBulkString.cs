@@ -3,6 +3,12 @@ using System.Text;
 public sealed record RespBulkString : RespValue
 {
     private const char ByteType = '$';
+    public static readonly RespValue Null = new RespBulkString(default(string));
+    private static readonly byte[] RespNullBulkString = "$-1\r\n"u8.ToArray();
+
+    public RespBulkString() : this(default(string))
+    {
+    }
     
     public RespBulkString(string? value)
     {
@@ -19,7 +25,7 @@ public sealed record RespBulkString : RespValue
     {
         if (Value is null)
         {
-            return RespNull.Instance.Encode();
+            return RespNullBulkString;
         }
 
         var result = new StringBuilder()
