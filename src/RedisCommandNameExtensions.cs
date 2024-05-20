@@ -10,4 +10,6 @@ public static class RedisCommandNameExtensions
     public static bool IsSet(this RespBulkString input) => input.Is(RedisCommand.SET);
     
     public static bool IsGet(this RespBulkString input) => input.Is(RedisCommand.GET);
+    
+    public static bool IsPx(this RespBulkString input) => input.Is(RedisCommand.PX);
 }
