@@ -2,44 +2,47 @@ using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Cocona;
 
-// You can use print statements as follows for debugging, they'll be visible when running tests.
-Console.WriteLine("Logs from your program will appear here!");
-
-const int bufferSize = 4096;
-var cancellationToken = CancellationToken.None;
-
-using var server = new TcpListener(IPAddress.Any, 6379);
-server.Start();
-
-while (true)
+await CoconaLiteApp.RunAsync(async (int port = 6379) =>
 {
-    var socket = await server.AcceptSocketAsync(cancellationToken); // wait for client
-    HandleAsync(socket);
-}
+    Console.WriteLine($"Running on port {port}");
 
-static async Task HandleAsync(Socket socket, CancellationToken cancellationToken = default)
-{
-    try
+    const int bufferSize = 4096;
+    var cancellationToken = CancellationToken.None;
+
+    using var server = new TcpListener(IPAddress.Any, port);
+    server.Start();
+
+    while (true)
     {
-        while (socket.Connected)
+        var socket = await server.AcceptSocketAsync(cancellationToken); // wait for client
+        _ = HandleAsync(socket);
+    }
+    
+    static async Task HandleAsync(Socket socket, CancellationToken cancellationToken = default)
+    {
+        try
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-            var receivedBytes = await socket.ReceiveAsync(buffer, SocketFlags.None);
-            Console.WriteLine($"{receivedBytes} bytes received");
+            while (socket.Connected)
+            {
+                var buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+                var receivedBytes = await socket.ReceiveAsync(buffer, SocketFlags.None);
+                Console.WriteLine($"{receivedBytes} bytes received");
         
-            using var reader = new StringReader(Encoding.ASCII.GetString(buffer));
-            var request = await RespDecoder.DecodeAsync(reader, cancellationToken);
-            var cmd = RedisCommand.From(request);
-            var result = await cmd.ExecuteAsync(cancellationToken);
-            var response = result.Encode();
+                using var reader = new StringReader(Encoding.ASCII.GetString(buffer));
+                var request = await RespDecoder.DecodeAsync(reader, cancellationToken);
+                var cmd = RedisCommand.From(request);
+                var result = await cmd.ExecuteAsync(cancellationToken);
+                var response = result.Encode();
         
-            await socket.SendAsync(response);
-            ArrayPool<byte>.Shared.Return(buffer);
+                await socket.SendAsync(response);
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
         }
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine(ex);
-    }
-}
+});
