@@ -6,12 +6,23 @@ public sealed class RedisCommand
 {
     private static readonly IMemoryCache Cache = new MemoryCache(new MemoryCacheOptions());
 
+    #region Commands
+
     public const string ECHO = nameof(ECHO);
+    public const string GET = nameof(GET);
+    public const string INFO = nameof(INFO);
     public const string PING = nameof(PING);
     public const string PONG = nameof(PONG);
     public const string SET = nameof(SET);
-    public const string GET = nameof(GET);
+
+    #endregion
+
+    #region Command Arguments
+
     public const string PX = nameof(PX);
+    public const string REPLICATION = nameof(REPLICATION);
+
+    #endregion
 
     private static readonly RespValue PongResponse = new RespString(PONG);
     private static readonly RespValue Ok = new RespString("OK");
@@ -34,10 +45,22 @@ public sealed class RedisCommand
         return _commandValue switch
         {
             RespArray items when items[0] is RespBulkString value && value.IsEcho() => Task.FromResult(items[1]),
+            RespArray items when items[0] is RespBulkString value && value.IsInfo() => ProcessInfoCommandAsync(items, cancellationToken),
+            RespArray items when items[0] is RespBulkString value && value.IsGet() => GetAsync(items[1], cancellationToken),
             RespArray items when items[0] is RespBulkString value && value.IsPing() => Task.FromResult(PongResponse),
             RespArray items when items[0] is RespBulkString value && value.IsSet() => ProcessSetCommandAsync(items, cancellationToken),
-            RespArray items when items[0] is RespBulkString value && value.IsGet() => GetAsync(items[1], cancellationToken),
             _ => throw new NotSupportedException()
+        };
+    }
+
+    private static Task<RespValue> ProcessInfoCommandAsync(RespArray items, CancellationToken cancellationToken)
+    {
+        var (count, replication) = (items.Count, items is [_, RespBulkString value] && value.IsPx());
+
+        return (count, replication) switch
+        {
+            (2, _) => Task.FromResult((RespValue)new RespBulkString("role:master")),
+            _ => throw new InvalidOperationException()
         };
     }
 
