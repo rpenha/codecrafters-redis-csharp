@@ -8,19 +8,9 @@ const int bufferSize = 4096;
 var cts = new CancellationTokenSource();
 var cancellationToken = cts.Token;
 
-Console.CancelKeyPress += (_, e) =>
-{
-    Console.WriteLine("Shutting down...");
-    e.Cancel = true;
-    cts.Cancel();
-    Console.WriteLine("Good bye!");
-    Environment.Exit(0);
-};
-
 _ = CoconaLiteApp.RunAsync((int port = 6379, string? replicaof = null) =>
 {
     Console.WriteLine($"Running on port {port}");
-    Console.Write("CTRL+C to exit");
 
     var replicaOptions = ServerInfo.GetReplicaOptions(replicaof);
     Console.WriteLine(replicaOptions);
@@ -68,4 +58,7 @@ _ = CoconaLiteApp.RunAsync((int port = 6379, string? replicaof = null) =>
     });
 }, cancellationToken: cancellationToken);
 
-Console.ReadKey();
+Console.Read();
+cts.Cancel();
+Console.WriteLine("Good bye!");
+Environment.Exit(0);
