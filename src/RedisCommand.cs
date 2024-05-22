@@ -59,7 +59,7 @@ public sealed class RedisCommand
 
         return (count, replication) switch
         {
-            (2, _) => Task.FromResult((RespValue)new RespBulkString("role:master")),
+            (2, _) => Task.FromResult((RespValue)new RespBulkString($"role:{ServerInfo.GetRole()}")),
             _ => throw new InvalidOperationException()
         };
     }
