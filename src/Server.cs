@@ -12,8 +12,10 @@ _ = CoconaLiteApp.RunAsync((int port = 6379, string? replicaof = null) =>
 {
     Console.WriteLine($"Running on port {port}");
 
-    var replicaOptions = ServerInfo.GetReplicaOptions(replicaof);
-    Console.WriteLine(replicaOptions);
+    var replicaOptions = ReplicaOptions.Parse(replicaof);
+    
+    if (replicaOptions is not null)
+        Console.WriteLine(replicaOptions);
     
     if (replicaOptions is null)
         ServerInfo.SetMasterRole();
