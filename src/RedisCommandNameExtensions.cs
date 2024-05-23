@@ -15,6 +15,8 @@ public static class RedisCommandNameExtensions
 
     public static bool IsGet(this RespBulkString input) => input.Is(GET);
 
+    public static bool IsReplConf(this RespBulkString input) => input.Is(REPLCONF);
+    
     public static bool IsSet(this RespBulkString input) => input.Is(SET);
 
     public static bool IsPing(this RespBulkString input) => input.Is(PING);

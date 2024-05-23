@@ -1,8 +1,9 @@
 public static class RespDecoder
 {
     private const char RespArray = '*';
+    private const char RespString = '+';
     private const char RespBulkString = '$';
-    
+
     public static async Task<RespValue> DecodeAsync(StringReader reader, CancellationToken cancellationToken = default)
     {
         var type = reader.Read();
@@ -10,16 +11,24 @@ public static class RespDecoder
         return type switch
         {
             RespArray => await DecodeArray(reader, cancellationToken),
+            RespString => await DecodeString(reader, cancellationToken),
             RespBulkString => await DecodeBulkString(reader, cancellationToken),
             _ => throw new NotSupportedException()
         };
     }
 
+    private static async Task<RespString> DecodeString(StringReader reader, CancellationToken cancellationToken)
+    {
+        var value = await reader.ReadLineAsync(cancellationToken);
+        
+        return new RespString(value);
+    }
+    
     private static async Task<RespBulkString> DecodeBulkString(StringReader reader, CancellationToken cancellationToken)
     {
-        if (!int.TryParse(await reader.ReadLineAsync(cancellationToken), out var length))
+        if (!int.TryParse(await reader.ReadLineAsync(cancellationToken), out _))
         {
-            throw new ArgumentException("Invalid RespArray input", nameof(reader));
+            throw new ArgumentException($"Invalid {nameof(RespBulkString)} input", nameof(reader));
         }
 
         var value = await reader.ReadLineAsync(cancellationToken);
@@ -31,7 +40,7 @@ public static class RespDecoder
     {
         if (!int.TryParse(await reader.ReadLineAsync(cancellationToken), out var length))
         {
-            throw new ArgumentException("Invalid RespBulkString input", nameof(reader));
+            throw new ArgumentException($"Invalid {nameof(RespArray)} input", nameof(reader));
         }
 
         var list = new List<RespValue>();

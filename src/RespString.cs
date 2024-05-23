@@ -2,6 +2,8 @@ using System.Text;
 
 public sealed record RespString : RespValue
 {
+    public static readonly RespValue Ok = new RespString("OK");
+    
     private const char ByteType = '+';
 
     public RespString(string? value)

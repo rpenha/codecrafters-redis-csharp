@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Text;
 using Microsoft.Extensions.Caching.Memory;
 using static Constants.Commands;
 
@@ -26,23 +27,65 @@ public sealed class RedisContext
         ServerInfo.SetSlaveRole();
         using var master = new TcpClient(host, port);
         using var stream = master.GetStream();
-        
+
+        PingPong(stream);
+        ReplListeningPort(options, stream);
+        ReplCapabilities(stream);
+    }
+
+    private static void PingPong(NetworkStream stream)
+    {
         var ping = new RespArray([new RespBulkString(PING)]);
         stream.Write(ping.Encode());
-        
+
+        var buffer = new byte[16];
+
+        if (stream.Read(buffer) <= 0)
+            throw new InvalidOperationException($"No {PING} response from master");
+
+        var expr = Encoding.ASCII.GetString(buffer);
+        using var reader = new StringReader(expr);
+        var decoded = RespDecoder.DecodeAsync(reader).GetAwaiter().GetResult();
+
+        if (!Ping.PongResponse.Equals(decoded))
+            throw new InvalidOperationException($"Invalid {PING} response from master");
+    }
+
+    private static void ReplListeningPort(RedisOptions options, NetworkStream stream)
+    {
         var replConfListeningPort = new RespArray([
-            new RespBulkString(REPLCONF), 
+            new RespBulkString(REPLCONF),
             new RespBulkString("listening-port"),
             new RespBulkString($"{options.Port}")
         ]);
         stream.Write(replConfListeningPort.Encode());
-        
+        EnsureValidReplResponse(stream);
+    }
+
+    private static void ReplCapabilities(NetworkStream stream)
+    {
         var replConfCapa = new RespArray([
-            new RespBulkString(REPLCONF), 
+            new RespBulkString(REPLCONF),
             new RespBulkString("capa"),
             new RespBulkString("psync2")
         ]);
         stream.Write(replConfCapa.Encode());
+        EnsureValidReplResponse(stream);
+    }
+
+    private static void EnsureValidReplResponse(NetworkStream stream)
+    {
+        var buffer = new byte[16];
+
+        if (stream.Read(buffer) <= 0)
+            throw new InvalidOperationException($"No {REPLCONF} response from master");
+
+        var expr = Encoding.ASCII.GetString(buffer);
+        using var reader = new StringReader(expr);
+        var decoded = RespDecoder.DecodeAsync(reader).GetAwaiter().GetResult();
+
+        if (!RespString.Ok.Equals(decoded))
+            throw new InvalidOperationException($"Invalid {REPLCONF} response from master");
     }
 
     public Task<RespValue> ExecuteAsync(RespValue expr, CancellationToken cancellationToken = default)
@@ -53,7 +96,8 @@ public sealed class RedisContext
             RespArray items and [RespBulkString value, RespBulkString] when value.IsInfo() => new Info(items),
             RespArray and [RespBulkString value, RespBulkString input] when value.IsGet() => new Get(input, _cache),
             RespArray and [RespBulkString value] when value.IsPing() => new Ping(),
-            RespArray items and [RespBulkString value,..] when value.IsSet() => new Set(items, _cache),
+            RespArray items and [RespBulkString value, ..] when value.IsReplConf() => new ReplConf(),
+            RespArray items and [RespBulkString value, ..] when value.IsSet() => new Set(items, _cache),
             _ => throw new NotSupportedException()
         };
 
@@ -129,7 +173,7 @@ public sealed class Ping : RedisCommand
 {
     // ReSharper disable once InconsistentNaming
     private const string PONG = nameof(PONG);
-    private static readonly RespValue PongResponse = new RespString(PONG);
+    public static readonly RespValue PongResponse = new RespString(PONG);
 
     public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
     {
@@ -137,9 +181,16 @@ public sealed class Ping : RedisCommand
     }
 }
 
+public sealed class ReplConf : RedisCommand
+{
+    public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
+    {
+        return Task.FromResult(RespString.Ok);
+    }
+}
+
 public sealed class Set : RedisCommand
 {
-    private static readonly RespValue Ok = new RespString("OK");
     private readonly RespArray _input;
     private readonly IMemoryCache _cache;
 
@@ -173,6 +224,6 @@ public sealed class Set : RedisCommand
             ? _cache.Set(key, value, TimeSpan.FromMilliseconds(expiry.Value))
             : _cache.Set(key, value);
 
-        return Ok;
+        return RespString.Ok;
     }
 }
