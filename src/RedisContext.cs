@@ -6,24 +6,43 @@ public sealed class RedisContext
 {
     private readonly IMemoryCache _cache;
 
-    public RedisContext(IMemoryCache cache, ReplicaOptions? replicaOptions)
+    public RedisContext(IMemoryCache cache, RedisOptions options)
     {
         ArgumentNullException.ThrowIfNull(cache);
         _cache = cache;
 
-        if (replicaOptions is null)
+        if (options.ReplicaOptions is not null)
         {
-            ServerInfo.SetMasterRole();
+            MasterHandshake(options);
             return;
         }
 
-        var (host, port) = replicaOptions.Value;
+        ServerInfo.SetMasterRole();
+    }
+
+    private static void MasterHandshake(RedisOptions options)
+    {
+        var (host, port) = options.ReplicaOptions!;
         ServerInfo.SetSlaveRole();
         using var master = new TcpClient(host, port);
         using var stream = master.GetStream();
-        var expr = new RespArray([new RespBulkString(PING)]);
-        var request = expr.Encode();
-        stream.Write(request);
+        
+        var ping = new RespArray([new RespBulkString(PING)]);
+        stream.Write(ping.Encode());
+        
+        var replConfListeningPort = new RespArray([
+            new RespBulkString(REPLCONF), 
+            new RespBulkString("listening-port"),
+            new RespBulkString($"{options.Port}")
+        ]);
+        stream.Write(replConfListeningPort.Encode());
+        
+        var replConfCapa = new RespArray([
+            new RespBulkString(REPLCONF), 
+            new RespBulkString("capa"),
+            new RespBulkString("psync2")
+        ]);
+        stream.Write(replConfCapa.Encode());
     }
 
     public Task<RespValue> ExecuteAsync(RespValue expr, CancellationToken cancellationToken = default)

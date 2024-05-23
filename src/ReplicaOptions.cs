@@ -1,4 +1,11 @@
-public readonly record struct ReplicaOptions
+public record RedisOptions
+{
+    public required int Port { get; init; } = 6379;
+    
+    public ReplicaOptions? ReplicaOptions { get; init; }
+}
+
+public record ReplicaOptions
 {
     private ReplicaOptions(string masterHost, int masterPort)
     {
@@ -10,7 +17,7 @@ public readonly record struct ReplicaOptions
     {
         if (string.IsNullOrEmpty(input))
             return null;
-        
+
         try
         {
             var options = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);

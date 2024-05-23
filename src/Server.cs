@@ -23,7 +23,7 @@ static async Task HandleAsync(Socket socket, RedisContext context, CancellationT
             
             Console.WriteLine($"{receivedBytes} bytes received");
             Console.WriteLine("---");
-            Console.WriteLine(expr);
+            Console.Write(expr);
             Console.WriteLine("---");
             
             using var reader = new StringReader(expr);
@@ -43,10 +43,14 @@ static async Task HandleAsync(Socket socket, RedisContext context, CancellationT
 
 _ = CoconaLiteApp.RunAsync((int port = 6379, string? replicaof = null) =>
 {
-    var replicaOptions = ReplicaOptions.Parse(replicaof);
+    var options = new RedisOptions
+    {
+        Port = port,
+        ReplicaOptions = ReplicaOptions.Parse(replicaof)
+    };
 
     var cache = new MemoryCache(new MemoryCacheOptions());
-    var ctx = new RedisContext(cache, replicaOptions);
+    var ctx = new RedisContext(cache, options);
     
     Console.WriteLine($"Running on port {port}");
 
