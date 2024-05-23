@@ -1,3 +1,7 @@
+using static Constants.Commands;
+using static Constants.CommandArguments;
+
+// ReSharper disable InconsistentNaming
 public static class RedisCommandNameExtensions
 {
     private static bool Is(this RespBulkString input, string commandName) => 
@@ -5,23 +9,23 @@ public static class RedisCommandNameExtensions
 
     #region Commands
 
-    public static bool IsEcho(this RespBulkString input) => input.Is(RedisCommand.ECHO);
+    public static bool IsEcho(this RespBulkString input) => input.Is(ECHO);
     
-    public static bool IsInfo(this RespBulkString input) => input.Is(RedisCommand.INFO);
+    public static bool IsInfo(this RespBulkString input) => input.Is(INFO);
 
-    public static bool IsGet(this RespBulkString input) => input.Is(RedisCommand.GET);
+    public static bool IsGet(this RespBulkString input) => input.Is(GET);
 
-    public static bool IsSet(this RespBulkString input) => input.Is(RedisCommand.SET);
+    public static bool IsSet(this RespBulkString input) => input.Is(SET);
 
-    public static bool IsPing(this RespBulkString input) => input.Is(RedisCommand.PING);
+    public static bool IsPing(this RespBulkString input) => input.Is(PING);
 
     #endregion
 
     #region Command Arguments
 
-    public static bool IsPx(this RespBulkString input) => input.Is(RedisCommand.PX);
+    public static bool IsPx(this RespBulkString input) => input.Is(PX);
     
-    public static bool IsReplication(this RespBulkString input) => input.Is(RedisCommand.REPLICATION);
+    public static bool IsReplication(this RespBulkString input) => input.Is(REPLICATION);
 
     #endregion
 }

@@ -18,15 +18,14 @@ public sealed record RespArray : RespValue
 
     public override ArraySegment<byte> Encode()
     {
-        var sb = new StringBuilder()
-            .Append(ByteType)
-            .Append(Count);
+        var data = Encoding.ASCII.GetBytes($"{ByteType}{Count}{CRLF}");
 
         foreach (var item in _items ?? Array.Empty<RespValue>())
         {
-            sb.Append(item.Encode());
+            var encoded = item.Encode().AsEnumerable();
+            data = [..data, ..encoded];
         }
 
-        return Encoding.ASCII.GetBytes(sb.ToString());
+        return data;
     }
 }

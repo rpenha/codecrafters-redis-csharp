@@ -27,4 +27,10 @@ public readonly record struct ReplicaOptions
     public string MasterHost { get; }
 
     public int MasterPort { get; }
+
+    public void Deconstruct(out string masterHost, out int masterPort)
+    {
+        masterHost = MasterHost;
+        masterPort = MasterPort;
+    }
 }
