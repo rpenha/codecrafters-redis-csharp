@@ -5,7 +5,7 @@ public sealed class Get : Command
     private readonly RespValue _key;
     private readonly IMemoryCache _cache;
 
-    public Get(RespValue expr, IMemoryCache cache)
+    public Get(RespValue expr, IMemoryCache cache) : base(expr)
     {
         ArgumentNullException.ThrowIfNull(expr);
         ArgumentNullException.ThrowIfNull(cache);

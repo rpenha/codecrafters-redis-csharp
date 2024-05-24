@@ -2,7 +2,7 @@ public sealed class Echo : Command
 {
     private readonly RespBulkString _value;
 
-    public Echo(RespValue expr)
+    public Echo(RespValue expr) : base(expr)
     {
         ArgumentNullException.ThrowIfNull(expr);
         _value = expr switch

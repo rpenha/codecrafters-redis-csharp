@@ -9,35 +9,38 @@ const int bufferSize = 4096;
 var cts = new CancellationTokenSource();
 var cancellationToken = cts.Token;
 
-static async Task HandleAsync(Socket socket, RedisContext context, CancellationToken cancellationToken)
+static async Task HandleAsync(Socket client, RedisContext context, CancellationToken cancellationToken)
 {
-    try
+    while (client.Connected)
     {
-        while (socket.Connected)
+        var buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+
+        try
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-            var receivedBytes = await socket.ReceiveAsync(buffer, SocketFlags.None);
+            var receivedBytes = await client.ReceiveAsync(buffer, SocketFlags.None);
             if (receivedBytes == 0) continue;
-            
+
             var expr = Encoding.ASCII.GetString(buffer);
-            
+
             Console.WriteLine($"{receivedBytes} bytes received");
             Console.WriteLine("---");
             Console.Write(expr);
             Console.WriteLine("---");
-            
+
             using var reader = new StringReader(expr);
             var request = await RespDecoder.DecodeAsync(reader, cancellationToken);
-            var result = await context.ExecuteAsync(request, cancellationToken);
+            var result = await context.ExecuteAsync(request, client, cancellationToken);
             var response = result.Encode();
-
-            await socket.SendAsync(response);
+            await client.SendAsync(response);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+        finally
+        {
             ArrayPool<byte>.Shared.Return(buffer);
         }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine(ex);
     }
 }
 
@@ -51,7 +54,7 @@ _ = CoconaLiteApp.RunAsync((int port = 6379, string? replicaof = null) =>
 
     var cache = new MemoryCache(new MemoryCacheOptions());
     var ctx = new RedisContext(cache, options);
-    
+
     Console.WriteLine($"Running on port {port}");
 
     Task.Factory.StartNew(async () =>
@@ -60,8 +63,8 @@ _ = CoconaLiteApp.RunAsync((int port = 6379, string? replicaof = null) =>
         server.Start();
         while (!cancellationToken.IsCancellationRequested)
         {
-            var socket = await server.AcceptSocketAsync(cancellationToken); // wait for client
-            _ = HandleAsync(socket, ctx, cancellationToken);
+            var client = await server.AcceptSocketAsync(cancellationToken); // wait for client
+            _ = HandleAsync(client, ctx, cancellationToken);
         }
     });
 }, cancellationToken: cancellationToken);

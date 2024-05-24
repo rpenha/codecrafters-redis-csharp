@@ -5,9 +5,8 @@ public sealed class Set : Command
     private readonly RespArray _items;
     private readonly IMemoryCache _cache;
 
-    public Set(RespValue expr, IMemoryCache cache)
+    public Set(RespValue expr, IMemoryCache cache) : base(expr)
     {
-        ArgumentNullException.ThrowIfNull(expr);
         ArgumentNullException.ThrowIfNull(cache);
         
         _items = expr switch
@@ -43,4 +42,6 @@ public sealed class Set : Command
 
         return RespString.Ok;
     }
+
+    public override bool IsWrite() => true;
 }

@@ -15,7 +15,7 @@ public static class RespValueExtensions
         {
             RespBulkString type => Enum.Parse<CommandType>(type!, true),
             RespArray { Count: > 0 } items when items[0] is RespBulkString type => Enum.Parse<CommandType>(type!, true),
-            _ => CommandType.Unsupported
+            _ => CommandType.NotSupported
         };
     }
 

@@ -2,7 +2,7 @@ public sealed class Info : Command
 {
     private readonly RespArray _items;
 
-    public Info(RespValue expr)
+    public Info(RespValue expr) : base(expr)
     {
         ArgumentNullException.ThrowIfNull(expr);
         _items = expr switch

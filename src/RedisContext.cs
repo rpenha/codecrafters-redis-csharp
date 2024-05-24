@@ -3,9 +3,13 @@ using System.Text;
 using Microsoft.Extensions.Caching.Memory;
 using static Constants.Commands;
 
-public sealed class RedisContext
+public sealed class RedisContext : IDisposable
 {
+    private readonly HashSet<Socket> _replicas = [];
     private readonly IMemoryCache _cache;
+    private TcpClient? _master;
+
+    private Func<Command, Task>? OnCommandExecuted { get; set; }
 
     public RedisContext(IMemoryCache cache, RedisOptions options)
     {
@@ -19,14 +23,33 @@ public sealed class RedisContext
         }
 
         ServerInfo.SetMasterRole();
+
+        OnCommandExecuted += PropagateCommandAsync;
     }
 
-    private static void MasterHandshake(RedisOptions options)
+    private async Task PropagateCommandAsync(Command command)
+    {
+        if (!command.IsWrite()) return;
+
+        foreach (var replica in _replicas)
+        {
+            try
+            {
+                await replica.SendAsync(command.Expr.Encode());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+        }
+    }
+
+    private void MasterHandshake(RedisOptions options)
     {
         var (host, port) = options.ReplicaOptions!;
         ServerInfo.SetSlaveRole();
-        using var master = new TcpClient(host, port);
-        using var stream = master.GetStream();
+        _master = new TcpClient(host, port);
+        var stream = _master.GetStream();
 
         PingPong(stream);
         ReplListeningPort(options, stream);
@@ -73,7 +96,7 @@ public sealed class RedisContext
         stream.Write(replConfCapa.Encode());
         EnsureValidReplResponse(stream);
     }
-    
+
     private static void Psync(NetworkStream stream)
     {
         var psync = new RespArray([
@@ -100,22 +123,42 @@ public sealed class RedisContext
             throw new InvalidOperationException($"Invalid {REPLCONF} response from master");
     }
 
-    public Task<RespValue> ExecuteAsync(RespValue expr, CancellationToken cancellationToken = default)
+    public Task<RespValue> ExecuteAsync(RespValue expr, Socket client, CancellationToken cancellationToken = default)
     {
         var commandType = expr.GetCommandType();
-        
+
         Command cmd = commandType switch
         {
             CommandType.Echo => new Echo(expr),
             CommandType.Get => new Get(expr, _cache),
             CommandType.Info => new Info(expr),
-            CommandType.Ping => new Ping(),
-            CommandType.Replconf => new ReplConf(),
+            CommandType.Ping => new Ping(expr),
+            CommandType.Replconf => new ReplConf(expr),
             CommandType.Set => new Set(expr, _cache),
-            CommandType.Psync => new Psync(),
+            CommandType.Psync => new Psync(expr),
+            CommandType.NotSupported => throw new NotSupportedException(),
             _ => throw new NotSupportedException()
         };
 
-        return cmd.ExecuteAsync(cancellationToken);
+        if (ServerInfo.IsMaster() && cmd is Psync)
+        {
+            RegisterReplica(client);
+        }
+
+        var result = cmd.ExecuteAsync(cancellationToken);
+
+        OnCommandExecuted?.Invoke(cmd);
+
+        return result;
+    }
+
+    private void RegisterReplica(Socket replica)
+    {
+        _replicas.Add(replica);
+    }
+
+    public void Dispose()
+    {
+        _master?.Dispose();
     }
 }
