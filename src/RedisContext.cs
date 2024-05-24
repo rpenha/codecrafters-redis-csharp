@@ -82,7 +82,7 @@ public sealed class RedisContext
             new RespBulkString("-1")
         ]);
         stream.Write(psync.Encode());
-        EnsureValidReplResponse(stream);
+        //EnsureValidReplResponse(stream);
     }
 
     private static void EnsureValidReplResponse(NetworkStream stream)
