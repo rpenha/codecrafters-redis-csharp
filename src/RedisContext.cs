@@ -31,6 +31,7 @@ public sealed class RedisContext
         PingPong(stream);
         ReplListeningPort(options, stream);
         ReplCapabilities(stream);
+        Psync(stream);
     }
 
     private static void PingPong(NetworkStream stream)
@@ -72,6 +73,17 @@ public sealed class RedisContext
         stream.Write(replConfCapa.Encode());
         EnsureValidReplResponse(stream);
     }
+    
+    private static void Psync(NetworkStream stream)
+    {
+        var psync = new RespArray([
+            new RespBulkString(PSYNC),
+            new RespBulkString("?"),
+            new RespBulkString("-1")
+        ]);
+        stream.Write(psync.Encode());
+        EnsureValidReplResponse(stream);
+    }
 
     private static void EnsureValidReplResponse(NetworkStream stream)
     {
@@ -90,140 +102,20 @@ public sealed class RedisContext
 
     public Task<RespValue> ExecuteAsync(RespValue expr, CancellationToken cancellationToken = default)
     {
-        RedisCommand cmd = expr switch
+        var commandType = expr.GetCommandType();
+        
+        Command cmd = commandType switch
         {
-            RespArray and [RespBulkString value, RespBulkString input] when value.IsEcho() => new Echo(input),
-            RespArray items and [RespBulkString value, RespBulkString] when value.IsInfo() => new Info(items),
-            RespArray and [RespBulkString value, RespBulkString input] when value.IsGet() => new Get(input, _cache),
-            RespArray and [RespBulkString value] when value.IsPing() => new Ping(),
-            RespArray items and [RespBulkString value, ..] when value.IsReplConf() => new ReplConf(),
-            RespArray items and [RespBulkString value, ..] when value.IsSet() => new Set(items, _cache),
+            CommandType.Echo => new Echo(expr),
+            CommandType.Get => new Get(expr, _cache),
+            CommandType.Info => new Info(expr),
+            CommandType.Ping => new Ping(),
+            CommandType.Replconf => new ReplConf(),
+            CommandType.Set => new Set(expr, _cache),
+            //CommandType.Psync => expr,
             _ => throw new NotSupportedException()
         };
 
         return cmd.ExecuteAsync(cancellationToken);
-    }
-}
-
-public abstract class RedisCommand
-{
-    public abstract Task<RespValue> ExecuteAsync(CancellationToken cancellationToken);
-}
-
-public sealed class Echo : RedisCommand
-{
-    private readonly RespBulkString _value;
-
-    public Echo(RespBulkString input)
-    {
-        ArgumentNullException.ThrowIfNull(input);
-        _value = input;
-    }
-
-    public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
-    {
-        return Task.FromResult((RespValue)_value);
-    }
-}
-
-public sealed class Get : RedisCommand
-{
-    private readonly RespValue _key;
-    private readonly IMemoryCache _cache;
-
-    public Get(RespValue key, IMemoryCache cache)
-    {
-        ArgumentNullException.ThrowIfNull(key);
-        ArgumentNullException.ThrowIfNull(cache);
-        _key = key;
-        _cache = cache;
-    }
-
-    public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
-    {
-        return !_cache.TryGetValue(_key, out RespValue? output)
-            ? Task.FromResult(RespBulkString.Null)
-            : Task.FromResult(output ?? RespBulkString.Null);
-    }
-}
-
-public sealed class Info : RedisCommand
-{
-    private readonly RespArray _items;
-
-    public Info(RespArray input)
-    {
-        ArgumentNullException.ThrowIfNull(input);
-        _items = input;
-    }
-
-    public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
-    {
-        var (count, replication) = (_items.Count, _items is [_, RespBulkString value] && value.IsPx());
-
-        return (count, replication) switch
-        {
-            (2, _) => Task.FromResult((RespValue)ServerInfo.GetValues().GetInfoResponse()),
-            _ => throw new InvalidOperationException()
-        };
-    }
-}
-
-public sealed class Ping : RedisCommand
-{
-    // ReSharper disable once InconsistentNaming
-    private const string PONG = nameof(PONG);
-    public static readonly RespValue PongResponse = new RespString(PONG);
-
-    public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
-    {
-        return Task.FromResult(PongResponse);
-    }
-}
-
-public sealed class ReplConf : RedisCommand
-{
-    public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
-    {
-        return Task.FromResult(RespString.Ok);
-    }
-}
-
-public sealed class Set : RedisCommand
-{
-    private readonly RespArray _input;
-    private readonly IMemoryCache _cache;
-
-    public Set(RespArray input, IMemoryCache cache)
-    {
-        ArgumentNullException.ThrowIfNull(input);
-        ArgumentNullException.ThrowIfNull(cache);
-        _input = input;
-        _cache = cache;
-    }
-
-    public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
-    {
-        var (count, px) = (_input.Count, _input is [_, _, _, RespBulkString value, _] && value.IsPx());
-
-        var output = (count, px) switch
-        {
-            (3, _) => SetValue(_input[1], _input[2], null),
-            (5, true) => SetValue(_input[1], _input[2], ParseExpiry(_input[4])),
-            _ => throw new InvalidOperationException()
-        };
-
-        return Task.FromResult(output);
-    }
-
-    private static long ParseExpiry(RespValue item) => long.Parse(((RespBulkString)item).Value!);
-
-    private RespValue SetValue(RespValue key, RespValue value, long? expiry)
-    {
-        _ = expiry.HasValue
-            ? _cache.Set(key, value, TimeSpan.FromMilliseconds(expiry.Value))
-            : _cache.Set(key, value);
-
-        return RespString.Ok;
     }
 }
