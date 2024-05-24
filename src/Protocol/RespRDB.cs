@@ -15,6 +15,6 @@ public sealed record RespRDB : RespValue
     {
         var value = new RespString($"FULLRESYNC {ServerInfo.GetReplId()} {ServerInfo.GetMasterReplOffset()}");
         var encoded = value.Encode();
-        return new ArraySegment<byte>([..encoded, .."$"u8, ..EmptyRDB, CR, LF]);
+        return new ArraySegment<byte>([..encoded, .."$88"u8, ..EmptyRDB, CR, LF]);
     }
 }
