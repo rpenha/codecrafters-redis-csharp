@@ -112,7 +112,7 @@ public sealed class RedisContext
             CommandType.Ping => new Ping(),
             CommandType.Replconf => new ReplConf(),
             CommandType.Set => new Set(expr, _cache),
-            //CommandType.Psync => expr,
+            CommandType.Psync => new Psync(),
             _ => throw new NotSupportedException()
         };
 

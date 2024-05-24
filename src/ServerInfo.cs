@@ -22,6 +22,10 @@ public static class ServerInfo
 
     public static string GetRole() => Values[Role];
 
+    public static string GetReplId() => Values[MasterReplId];
+    
+    public static string GetMasterReplOffset() => Values[MasterReplOffset];
+
     public static IDictionary<string, string> GetValues() => new ReadOnlyDictionary<string, string>(Values);
 
     private static string NewMasterReplId() => $"{Guid.NewGuid():N}{Guid.NewGuid():N}"[..40];
