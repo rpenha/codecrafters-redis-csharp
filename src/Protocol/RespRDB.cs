@@ -2,6 +2,7 @@
 // ReSharper disable InconsistentNaming
 public sealed record RespRDB : RespValue
 {
+    private const char ByteType = '$';
     private static readonly byte[] EmptyRDB = [
         0x52, 0x45, 0x44, 0x49, 0x53, 0x30, 0x30, 0x31, 0x31, 0xfa, 0x09, 0x72, 0x65, 0x64, 0x69, 0x73, //  |REDIS0011..redis|
         0x2d, 0x76, 0x65, 0x72, 0x05, 0x37, 0x2e, 0x32, 0x2e, 0x30, 0xfa, 0x0a, 0x72, 0x65, 0x64, 0x69, //  |-ver.7.2.0..redi|
@@ -15,6 +16,6 @@ public sealed record RespRDB : RespValue
     {
         var value = new RespString($"FULLRESYNC {ServerInfo.GetReplId()} {ServerInfo.GetMasterReplOffset()}");
         var encoded = value.Encode();
-        return new ArraySegment<byte>([..encoded, .."$"u8, ..EmptyRDB]);
+        return new ArraySegment<byte>([..encoded, (byte)ByteType, ..EmptyRDB, CR, LF]);
     }
 }
