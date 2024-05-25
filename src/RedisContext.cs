@@ -186,7 +186,7 @@ public sealed class RedisContext : IDisposable
             CommandType.Fullresync => new Fullresync(expr),
             CommandType.Info => new Info(expr),
             CommandType.Ping => new Ping(expr),
-            CommandType.Replconf => new ReplConf(expr),
+            CommandType.Replconf => new ReplConf(expr, client),
             CommandType.Set => new Set(expr, _cache),
             CommandType.Psync => new Psync(expr),
             CommandType.NotSupported => throw new NotSupportedException(),
