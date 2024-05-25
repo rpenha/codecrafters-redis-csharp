@@ -37,7 +37,7 @@ public sealed class ReplConf : Command
     {
         var result = new RespArray([
             new RespBulkString(REPLCONF),
-            new RespBulkString(GETACK),
+            new RespBulkString("ACK"),
             new RespBulkString("0")
         ]);
 
