@@ -30,6 +30,10 @@ public static class RespDecoder
     {
         var value = await reader.ReadLineAsync(cancellationToken);
 
+        // TODO: Split commands broke fullresync
+        if (value != null && value.StartsWith(Constants.Commands.FULLRESYNC, StringComparison.OrdinalIgnoreCase))
+            await reader.ReadToEndAsync(cancellationToken);
+
         return new RespString(value);
     }
 
