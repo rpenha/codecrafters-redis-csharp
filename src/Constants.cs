@@ -7,6 +7,7 @@ public static class Constants
 
         public const string ECHO = nameof(ECHO);
         public const string GET = nameof(GET);
+        public const string FULLRESYNC = nameof(FULLRESYNC);
         public const string INFO = nameof(INFO);
         public const string PING = nameof(PING);
         public const string PSYNC = nameof(PSYNC);

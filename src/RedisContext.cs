@@ -20,7 +20,6 @@ public sealed class RedisContext : IDisposable
         if (options.ReplicaOptions is not null)
         {
             MasterHandshake(options);
-            HandleReplicatedCommands();
             return;
         }
 
@@ -57,6 +56,7 @@ public sealed class RedisContext : IDisposable
         ReplListeningPort(options, stream);
         ReplCapabilities(stream);
         Psync(stream);
+        HandleReplicatedCommands();
     }
 
     private void HandleReplicatedCommands()
@@ -67,33 +67,32 @@ public sealed class RedisContext : IDisposable
         {
             const int capacity = 4096;
             var client = _master.Client;
-            var st = _master.GetStream();
-            var buffer = ArrayPool<byte>.Shared.Rent(capacity);
-            
+            var stream = _master.GetStream();
+
             while (client.Connected)
             {
+                var buffer = ArrayPool<byte>.Shared.Rent(capacity);
                 try
                 {
-                    var receivedBytes = st.Read(buffer, 0, buffer.Length);
+                    var receivedBytes = stream.Read(buffer, 0, buffer.Length);
                     if (receivedBytes == 0) continue;
-                    var expr = Encoding.ASCII.GetString(buffer, 0, receivedBytes);
-                    
-                    Console.WriteLine($"{receivedBytes} bytes received from master");
-                    Console.WriteLine("---");
-                    Console.Write(expr);
-                    Console.WriteLine("---");
-                    
-                    using var reader = new StringReader(expr);
-                    var request = await RespDecoder.DecodeAsync(reader);
-                    await ExecuteAsync(request, client);
+                    var received = Encoding.ASCII.GetString(buffer, 0, receivedBytes);
+                    Console.WriteLine($"{ServerInfo.GetRole()}: received: {received.Replace("\r", "\\r").Replace("\n", "\\n")}");
+                    using var reader = new StringReader(received);
+                    await foreach (var request in RespDecoder.DecodeAsync(reader))
+                    {
+                        await ExecuteAsync(request, client);
+                    }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex);
                 }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
             }
-            
-            ArrayPool<byte>.Shared.Return(buffer);
         });
     }
 
@@ -109,7 +108,10 @@ public sealed class RedisContext : IDisposable
 
         var expr = Encoding.ASCII.GetString(buffer);
         using var reader = new StringReader(expr);
-        var decoded = RespDecoder.DecodeAsync(reader).GetAwaiter().GetResult();
+
+        var decoded = RespDecoder.DecodeAsync(reader)
+            .ToBlockingEnumerable()
+            .First();
 
         if (!Ping.PongResponse.Equals(decoded))
             throw new InvalidOperationException($"Invalid {PING} response from master");
@@ -122,7 +124,9 @@ public sealed class RedisContext : IDisposable
             new RespBulkString("listening-port"),
             new RespBulkString($"{options.Port}")
         ]);
-        stream.Write(replConfListeningPort.Encode());
+        var encoded = replConfListeningPort.Encode();
+        stream.Write(encoded);
+        Console.WriteLine($"{ServerInfo.GetRole()}: sent: {Encoding.ASCII.GetString(encoded).Replace("\r", "\\r").Replace("\n", "\\n")}");
         EnsureValidReplResponse(stream);
     }
 
@@ -133,7 +137,9 @@ public sealed class RedisContext : IDisposable
             new RespBulkString("capa"),
             new RespBulkString("psync2")
         ]);
-        stream.Write(replConfCapa.Encode());
+        var encoded = replConfCapa.Encode();
+        stream.Write(encoded);
+        Console.WriteLine($"{ServerInfo.GetRole()}: sent: {Encoding.ASCII.GetString(encoded).Replace("\r", "\\r").Replace("\n", "\\n")}");
         EnsureValidReplResponse(stream);
     }
 
@@ -144,7 +150,9 @@ public sealed class RedisContext : IDisposable
             new RespBulkString("?"),
             new RespBulkString("-1")
         ]);
-        stream.Write(psync.Encode());
+        var encoded = psync.Encode();
+        stream.Write(encoded);
+        Console.WriteLine($"{ServerInfo.GetRole()}: sent: {Encoding.ASCII.GetString(encoded).Replace("\r", "\\r").Replace("\n", "\\n")}");
         //EnsureValidReplResponse(stream);
     }
 
@@ -156,8 +164,12 @@ public sealed class RedisContext : IDisposable
             throw new InvalidOperationException($"No {REPLCONF} response from master");
 
         var expr = Encoding.ASCII.GetString(buffer);
+        Console.WriteLine($"{ServerInfo.GetRole()}: received: {expr.Replace("\r", "\\r").Replace("\n", "\\n")}");
         using var reader = new StringReader(expr);
-        var decoded = RespDecoder.DecodeAsync(reader).GetAwaiter().GetResult();
+        
+        var decoded = RespDecoder.DecodeAsync(reader)
+            .ToBlockingEnumerable()
+            .First();
 
         if (!RespString.Ok.Equals(decoded))
             throw new InvalidOperationException($"Invalid {REPLCONF} response from master");
@@ -171,6 +183,7 @@ public sealed class RedisContext : IDisposable
         {
             CommandType.Echo => new Echo(expr),
             CommandType.Get => new Get(expr, _cache),
+            CommandType.Fullresync => new Fullresync(expr),
             CommandType.Info => new Info(expr),
             CommandType.Ping => new Ping(expr),
             CommandType.Replconf => new ReplConf(expr),

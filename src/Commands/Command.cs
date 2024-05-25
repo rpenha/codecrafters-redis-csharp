@@ -17,6 +17,7 @@ public enum CommandType
 {
     NotSupported,
     Echo,
+    Fullresync,
     Get,
     Info,
     Ping,

@@ -22,16 +22,16 @@ static async Task HandleAsync(Socket client, RedisContext context, CancellationT
 
             var expr = Encoding.ASCII.GetString(buffer);
 
-            Console.WriteLine($"{receivedBytes} bytes received");
-            Console.WriteLine("---");
-            Console.Write(expr);
-            Console.WriteLine("---");
+            Console.WriteLine($"{ServerInfo.GetRole()}: received: {expr.Replace("\r", "\\r").Replace("\n", "\\n")}");
 
             using var reader = new StringReader(expr);
-            var request = await RespDecoder.DecodeAsync(reader, cancellationToken);
-            var result = await context.ExecuteAsync(request, client, cancellationToken);
-            var response = result.Encode();
-            await client.SendAsync(response);
+            
+            await foreach(var request in RespDecoder.DecodeAsync(reader, cancellationToken))
+            {
+                var result = await context.ExecuteAsync(request, client, cancellationToken);
+                var response = result.Encode();
+                await client.SendAsync(response);
+            }
         }
         catch (Exception ex)
         {
@@ -39,7 +39,7 @@ static async Task HandleAsync(Socket client, RedisContext context, CancellationT
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            ArrayPool<byte>.Shared.Return(buffer, true);
         }
     }
 }
