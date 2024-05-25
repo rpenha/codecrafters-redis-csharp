@@ -21,9 +21,10 @@ public static class Constants
     {
         #region Command Arguments
 
+        public const string GETACK = nameof(GETACK);
         public const string PX = nameof(PX);
         public const string REPLICATION = nameof(REPLICATION);
-        
+
         #endregion
     }
 }

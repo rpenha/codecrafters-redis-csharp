@@ -13,7 +13,7 @@ public sealed class Get : Command
         _key = expr switch
         {
             RespArray and [RespBulkString type, RespBulkString key] when type.Is(CommandType.Get) => key,
-            _ => throw new ArgumentException("Invalid INFO command expression")
+            _ => throw new ArgumentException("Invalid GET command expression")
         };
 
         _cache = cache;

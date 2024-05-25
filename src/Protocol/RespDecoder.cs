@@ -25,20 +25,7 @@ public static class RespDecoder
             };
         }
     }
-
-    // public static async Task<RespValue> DecodeAsync(StringReader reader, CancellationToken cancellationToken = default)
-    // {
-    //     var type = reader.Read();
-    //
-    //     return type switch
-    //     {
-    //         RespArray => await DecodeArray(reader, cancellationToken),
-    //         RespString => await DecodeString(reader, cancellationToken),
-    //         RespBulkString => await DecodeBulkString(reader, cancellationToken),
-    //         _ => throw new NotSupportedException()
-    //     };
-    // }
-
+    
     private static async Task<RespString> DecodeString(StringReader reader, CancellationToken cancellationToken)
     {
         var value = await reader.ReadLineAsync(cancellationToken);
