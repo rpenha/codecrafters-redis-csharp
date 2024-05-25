@@ -175,7 +175,7 @@ public sealed class RedisContext : IDisposable
             throw new InvalidOperationException($"Invalid {REPLCONF} response from master");
     }
 
-    public Task<RespValue> ExecuteAsync(RespValue expr, Socket client, CancellationToken cancellationToken = default)
+    public async Task<RespValue> ExecuteAsync(RespValue expr, Socket client, CancellationToken cancellationToken = default)
     {
         var commandType = expr.GetCommandType();
 
@@ -198,7 +198,7 @@ public sealed class RedisContext : IDisposable
             RegisterReplica(client);
         }
         
-        var result = cmd.ExecuteAsync(cancellationToken);
+        var result = await cmd.ExecuteAsync(cancellationToken);
 
         OnCommandExecuted?.Invoke(cmd);
 
