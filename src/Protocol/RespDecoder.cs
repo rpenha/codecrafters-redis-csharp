@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Primitives;
 
 public static class RespDecoder
 {
@@ -38,14 +39,23 @@ public static class RespDecoder
 
     private static async Task<RespBulkString> DecodeBulkString(StringReader reader, CancellationToken cancellationToken)
     {
-        if (!int.TryParse(await reader.ReadLineAsync(cancellationToken), out _))
+        if (!int.TryParse(await reader.ReadLineAsync(cancellationToken), out var offset))
         {
             throw new ArgumentException($"Invalid {nameof(RespBulkString)} input", nameof(reader));
         }
 
-        var value = await reader.ReadLineAsync(cancellationToken);
+        var sb = new StringBuilder();
+        var count = 0;
+        
+        while (count < offset)
+        {
+            sb.Append(Convert.ToChar(reader.Read()));
+            count++;
+        }
+        
+        await reader.ReadLineAsync(cancellationToken);
 
-        return new RespBulkString(value);
+        return new RespBulkString(sb.ToString());
     }
 
     private static async Task<RespArray> DecodeArray(StringReader reader, CancellationToken cancellationToken = default)
