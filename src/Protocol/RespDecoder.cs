@@ -20,7 +20,6 @@ public static class RespDecoder
         while ((chr = reader.Read()) > 0)
         {
             sb.Append(Convert.ToChar(chr));
-            Console.WriteLine($"Decoder: {sb}");
             yield return chr switch
             {
                 RespArray => await DecodeArray(reader, cancellationToken),
