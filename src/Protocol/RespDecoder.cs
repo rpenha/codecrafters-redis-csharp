@@ -9,7 +9,8 @@ public static class RespDecoder
     private const byte LF = 0x0A;
 
 
-    public static async IAsyncEnumerable<RespValue> DecodeAsync(StringReader reader, CancellationToken cancellationToken = default)
+    public static async IAsyncEnumerable<RespValue> DecodeAsync(StringReader reader,
+        CancellationToken cancellationToken = default)
     {
         int chr;
 
@@ -68,10 +69,11 @@ public static class RespDecoder
 
         while (list.Count < length)
         {
-            await foreach (var decoded in DecodeAsync(reader, cancellationToken))
-            {
-                list.Add(decoded);
-            }
+            var decoded = DecodeAsync(reader, cancellationToken)
+                .ToBlockingEnumerable(cancellationToken)
+                .First();
+            
+            list.Add(decoded);
         }
 
         return new RespArray(list.AsReadOnly());
