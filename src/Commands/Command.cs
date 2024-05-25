@@ -22,6 +22,7 @@ public enum CommandType
     Info,
     Ping,
     Psync,
+    RdbFile,
     Replconf,
     Set
 }

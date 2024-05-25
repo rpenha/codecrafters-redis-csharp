@@ -4,6 +4,7 @@ public sealed class Fullresync : Command
     {
         
     }
+    
     public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
     {
         return Task.FromResult(RespBulkString.Null);

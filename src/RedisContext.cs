@@ -175,7 +175,7 @@ public sealed class RedisContext : IDisposable
             throw new InvalidOperationException($"Invalid {REPLCONF} response from master");
     }
 
-    public async Task<RespValue> ExecuteAsync(RespValue expr, Socket client, CancellationToken cancellationToken = default)
+    public async Task<RespValue?> ExecuteAsync(RespValue expr, Socket client, CancellationToken cancellationToken = default)
     {
         var commandType = expr.GetCommandType();
 
@@ -186,6 +186,7 @@ public sealed class RedisContext : IDisposable
             CommandType.Fullresync => new Fullresync(expr),
             CommandType.Info => new Info(expr),
             CommandType.Ping => new Ping(expr),
+            CommandType.RdbFile => new Nop(expr),
             CommandType.Replconf => new ReplConf(expr, client),
             CommandType.Set => new Set(expr, _cache),
             CommandType.Psync => new Psync(expr),
@@ -202,7 +203,7 @@ public sealed class RedisContext : IDisposable
 
         OnCommandExecuted?.Invoke(cmd);
 
-        return result;
+        return cmd is Fullresync ? null : result;
     }
 
     private void RegisterReplica(Socket replica)

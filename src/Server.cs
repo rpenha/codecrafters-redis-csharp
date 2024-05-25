@@ -28,9 +28,17 @@ static async Task HandleAsync(Socket client, RedisContext context, CancellationT
             
             await foreach(var request in RespDecoder.DecodeAsync(reader, cancellationToken))
             {
-                var result = await context.ExecuteAsync(request, client, cancellationToken);
-                var response = result.Encode();
-                await client.SendAsync(response);
+                try
+                {
+                    var result = await context.ExecuteAsync(request, client, cancellationToken);
+                    if (result == null) continue;
+                    var response = result.Encode();
+                    await client.SendAsync(response);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
             }
         }
         catch (Exception ex)

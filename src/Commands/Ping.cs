@@ -13,3 +13,15 @@ public sealed class Ping : Command
         return Task.FromResult(PongResponse);
     }
 }
+
+public sealed class Nop : Command
+{
+    public Nop(RespValue expr) : base(expr)
+    {
+    }
+
+    public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
+    {
+        return Task.FromResult(RespBulkString.Null);
+    }
+}

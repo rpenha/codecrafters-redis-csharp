@@ -16,7 +16,7 @@ public static class RespValueExtensions
                 when input.Value
                     .Split(' ', StringSplitOptions.RemoveEmptyEntries)[0]
                     .Equals(Constants.Commands.FULLRESYNC, StringComparison.OrdinalIgnoreCase) => CommandType.Fullresync,
-            RespBulkString { Value: not null } input when input.Value.StartsWith("REDIS0011") => CommandType.NotSupported,
+            RespBulkString { Value: not null } input when input.Value.StartsWith("REDIS0011") => CommandType.RdbFile,
             RespBulkString type => Enum.Parse<CommandType>(type!, true),
             RespArray { Count: > 0 } items when items[0] is RespBulkString type => Enum.Parse<CommandType>(type!, true),
             _ => CommandType.NotSupported

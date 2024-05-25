@@ -29,11 +29,6 @@ public static class RespDecoder
     private static async Task<RespString> DecodeString(StringReader reader, CancellationToken cancellationToken)
     {
         var value = await reader.ReadLineAsync(cancellationToken);
-
-        // TODO: Split commands broke fullresync
-        if (value != null && value.StartsWith(Constants.Commands.FULLRESYNC, StringComparison.OrdinalIgnoreCase))
-            await reader.ReadToEndAsync(cancellationToken);
-
         return new RespString(value);
     }
 
