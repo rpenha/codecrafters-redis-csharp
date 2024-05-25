@@ -12,13 +12,13 @@ public sealed class ReplConf : Command
         ArgumentNullException.ThrowIfNull(expr);
         ArgumentNullException.ThrowIfNull(client);
 
-        _expr = expr switch
-        {
-            RespArray and [RespBulkString type, ..] when type.Is(CommandType.Replconf) => expr,
-            _ => throw new ArgumentException("Invalid GET command expression")
-        };
-        
+        _expr = expr;
         _client = client;
+
+        // _expr = expr switch
+        // {
+        //     RespArray and [RespBulkString type, ..] when type.Is(CommandType.Replconf) => expr,
+        // };
     }
 
     public override Task<RespValue> ExecuteAsync(CancellationToken cancellationToken)
@@ -29,7 +29,7 @@ public sealed class ReplConf : Command
                 when type.Is(CommandType.Replconf)
                      && args1.Value!.Equals(GETACK, StringComparison.OrdinalIgnoreCase)
                      && args2.Value!.Equals("*") => GetAcKAsync(cancellationToken),
-            _ => throw new NotSupportedException()
+            _ => Task.FromResult(RespString.Ok)
         };
     }
 

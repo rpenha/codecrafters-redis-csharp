@@ -197,7 +197,7 @@ public sealed class RedisContext : IDisposable
         {
             RegisterReplica(client);
         }
-
+        
         var result = cmd.ExecuteAsync(cancellationToken);
 
         OnCommandExecuted?.Invoke(cmd);
