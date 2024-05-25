@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net.Sockets;
 using System.Text;
 using Microsoft.Extensions.Caching.Memory;
@@ -9,7 +10,7 @@ public sealed class RedisContext : IDisposable
     private readonly IMemoryCache _cache;
     private TcpClient? _master;
 
-    private Func<Command, Task>? OnCommandExecuted { get; set; }
+    private Func<Command, Task>? OnCommandExecuted { get; }
 
     public RedisContext(IMemoryCache cache, RedisOptions options)
     {
@@ -19,6 +20,7 @@ public sealed class RedisContext : IDisposable
         if (options.ReplicaOptions is not null)
         {
             MasterHandshake(options);
+            HandleReplicatedCommands();
             return;
         }
 
@@ -55,6 +57,44 @@ public sealed class RedisContext : IDisposable
         ReplListeningPort(options, stream);
         ReplCapabilities(stream);
         Psync(stream);
+    }
+
+    private void HandleReplicatedCommands()
+    {
+        if (_master is null) return;
+        
+        _ = Task.Factory.StartNew(async () =>
+        {
+            const int capacity = 4096;
+            var client = _master.Client;
+            var st = _master.GetStream();
+            var buffer = ArrayPool<byte>.Shared.Rent(capacity);
+            
+            while (client.Connected)
+            {
+                try
+                {
+                    var receivedBytes = st.Read(buffer, 0, buffer.Length);
+                    if (receivedBytes == 0) continue;
+                    var expr = Encoding.ASCII.GetString(buffer, 0, receivedBytes);
+                    
+                    Console.WriteLine($"{receivedBytes} bytes received from master");
+                    Console.WriteLine("---");
+                    Console.Write(expr);
+                    Console.WriteLine("---");
+                    
+                    using var reader = new StringReader(expr);
+                    var request = await RespDecoder.DecodeAsync(reader);
+                    await ExecuteAsync(request, client);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+            }
+            
+            ArrayPool<byte>.Shared.Return(buffer);
+        });
     }
 
     private static void PingPong(NetworkStream stream)
