@@ -29,36 +29,36 @@ public sealed class RedisContext : IDisposable
 
         OnCommandExecuted += PropagateCommandAsync;
 
-        // var timer = new Timer(30000)
-        // {
-        //     AutoReset = false
-        // };
-        //
-        // timer.Elapsed += async (_, _) =>
-        // {
-        //     var expr = new RespArray([
-        //         new RespBulkString(REPLCONF),
-        //         new RespBulkString(GETACK),
-        //         new RespBulkString("*")
-        //     ]);
-        //     foreach (var replica in _replicas)
-        //     {
-        //         try
-        //         {
-        //             await replica.SendAsync(expr.Encode());
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             Console.WriteLine(ex);
-        //         }
-        //         finally
-        //         {
-        //             timer.Start();
-        //         }
-        //     }
-        // };
-        //
-        // timer.Start();
+        var timer = new Timer(30000)
+        {
+            AutoReset = false
+        };
+        
+        timer.Elapsed += async (_, _) =>
+        {
+            var expr = new RespArray([
+                new RespBulkString(REPLCONF),
+                new RespBulkString(GETACK),
+                new RespBulkString("*")
+            ]);
+            foreach (var replica in _replicas)
+            {
+                try
+                {
+                    await replica.SendAsync(expr.Encode());
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+                finally
+                {
+                    timer.Start();
+                }
+            }
+        };
+        
+        timer.Start();
     }
 
     private async Task PropagateCommandAsync(Command command)
@@ -116,6 +116,7 @@ public sealed class RedisContext : IDisposable
                     
                     await foreach (var request in RespDecoder.DecodeAsync(reader))
                     {
+                        Console.WriteLine($"Request: {request}");
                         await ExecuteAsync(request, client);
                     }
                 }
