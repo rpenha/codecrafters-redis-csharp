@@ -51,8 +51,9 @@ public static class RespDecoder
             sb.Append(Convert.ToChar(reader.Read()));
             count++;
         }
-        
-        await reader.ReadLineAsync(cancellationToken);
+
+        reader.Read(); // CR
+        reader.Read(); // LF
 
         return new RespBulkString(sb.ToString());
     }
