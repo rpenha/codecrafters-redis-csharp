@@ -21,9 +21,7 @@ static async Task HandleAsync(Socket client, RedisContext context, CancellationT
             if (receivedBytes == 0) continue;
 
             var expr = Encoding.ASCII.GetString(buffer);
-
             Console.WriteLine($"{ServerInfo.GetRole()}: received: {expr.Replace("\r", "\\r").Replace("\n", "\\n")}");
-
             using var reader = new StringReader(expr);
             
             await foreach(var request in RespDecoder.DecodeAsync(reader, cancellationToken))

@@ -2,7 +2,9 @@ using System.Buffers;
 using System.Net.Sockets;
 using System.Text;
 using Microsoft.Extensions.Caching.Memory;
+using static Constants.CommandArguments;
 using static Constants.Commands;
+using Timer = System.Timers.Timer;
 
 public sealed class RedisContext : IDisposable
 {
@@ -26,6 +28,37 @@ public sealed class RedisContext : IDisposable
         ServerInfo.SetMasterRole();
 
         OnCommandExecuted += PropagateCommandAsync;
+
+        // var timer = new Timer(30000)
+        // {
+        //     AutoReset = false
+        // };
+        //
+        // timer.Elapsed += async (_, _) =>
+        // {
+        //     var expr = new RespArray([
+        //         new RespBulkString(REPLCONF),
+        //         new RespBulkString(GETACK),
+        //         new RespBulkString("*")
+        //     ]);
+        //     foreach (var replica in _replicas)
+        //     {
+        //         try
+        //         {
+        //             await replica.SendAsync(expr.Encode());
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             Console.WriteLine(ex);
+        //         }
+        //         finally
+        //         {
+        //             timer.Start();
+        //         }
+        //     }
+        // };
+        //
+        // timer.Start();
     }
 
     private async Task PropagateCommandAsync(Command command)
@@ -67,18 +100,20 @@ public sealed class RedisContext : IDisposable
         {
             const int capacity = 4096;
             var client = _master.Client;
-            var stream = _master.GetStream();
 
             while (client.Connected)
             {
                 var buffer = ArrayPool<byte>.Shared.Rent(capacity);
+                
                 try
                 {
-                    var receivedBytes = stream.Read(buffer, 0, buffer.Length);
+                    var receivedBytes = await client.ReceiveAsync(buffer, SocketFlags.None);
                     if (receivedBytes == 0) continue;
+                    
                     var received = Encoding.ASCII.GetString(buffer, 0, receivedBytes);
                     Console.WriteLine($"{ServerInfo.GetRole()}: received: {received.Replace("\r", "\\r").Replace("\n", "\\n")}");
                     using var reader = new StringReader(received);
+                    
                     await foreach (var request in RespDecoder.DecodeAsync(reader))
                     {
                         await ExecuteAsync(request, client);
@@ -90,7 +125,7 @@ public sealed class RedisContext : IDisposable
                 }
                 finally
                 {
-                    ArrayPool<byte>.Shared.Return(buffer);
+                    ArrayPool<byte>.Shared.Return(buffer, true);
                 }
             }
         });
@@ -178,6 +213,8 @@ public sealed class RedisContext : IDisposable
     public async Task<RespValue?> ExecuteAsync(RespValue expr, Socket client, CancellationToken cancellationToken = default)
     {
         var commandType = expr.GetCommandType();
+        
+        Console.WriteLine($"Command Type: {expr} {commandType}");
 
         Command cmd = commandType switch
         {
