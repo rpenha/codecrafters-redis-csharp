@@ -45,7 +45,9 @@ public sealed class RedisContext : IDisposable
             {
                 try
                 {
-                    await replica.SendAsync(expr.Encode());
+                    var encoded = expr.Encode();
+                    await replica.SendAsync(encoded);
+                    Console.WriteLine($"{ServerInfo.GetRole()}: sent: {Encoding.ASCII.GetString(encoded).Replace("\r", "\\r").Replace("\n", "\\n")}");
                 }
                 catch (Exception ex)
                 {
@@ -69,7 +71,9 @@ public sealed class RedisContext : IDisposable
         {
             try
             {
-                await replica.SendAsync(command.Expr.Encode());
+                var encoded = command.Expr.Encode();
+                await replica.SendAsync(encoded);
+                Console.WriteLine($"{ServerInfo.GetRole()}: sent: {Encoding.ASCII.GetString(encoded).Replace("\r", "\\r").Replace("\n", "\\n")}");
             }
             catch (Exception ex)
             {
