@@ -116,6 +116,8 @@ public sealed class RedisContext : IDisposable
                     
                     await foreach (var request in RespDecoder.DecodeAsync(reader))
                     {
+                        // TODO: Receiving Ok... Need to investigate
+                        if (request.Equals(RespString.Ok)) continue;
                         Console.WriteLine($"Request: {request}");
                         await ExecuteAsync(request, client);
                     }
