@@ -29,38 +29,38 @@ public sealed class RedisContext : IDisposable
 
         OnCommandExecuted += PropagateCommandAsync;
 
-        // var timer = new Timer(30000)
-        // {
-        //     AutoReset = false
-        // };
-        //
-        // timer.Elapsed += async (_, _) =>
-        // {
-        //     var expr = new RespArray([
-        //         new RespBulkString(REPLCONF),
-        //         new RespBulkString(GETACK),
-        //         new RespBulkString("*")
-        //     ]);
-        //     foreach (var replica in _replicas)
-        //     {
-        //         try
-        //         {
-        //             var encoded = expr.Encode();
-        //             await replica.SendAsync(encoded);
-        //             Console.WriteLine($"{ServerInfo.GetRole()}: sent: {Encoding.ASCII.GetString(encoded).Replace("\r", "\\r").Replace("\n", "\\n")}");
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             Console.WriteLine(ex);
-        //         }
-        //         finally
-        //         {
-        //             timer.Start();
-        //         }
-        //     }
-        // };
+         var timer = new Timer(30000)
+         {
+             AutoReset = false
+         };
         
-        //timer.Start();
+         timer.Elapsed += async (_, _) =>
+         {
+             var expr = new RespArray([
+                 new RespBulkString(REPLCONF),
+                 new RespBulkString(GETACK),
+                 new RespBulkString("*")
+             ]);
+             foreach (var replica in _replicas)
+             {
+                 try
+                 {
+                     var encoded = expr.Encode();
+                     await replica.SendAsync(encoded);
+                     Console.WriteLine($"{ServerInfo.GetRole()}: sent: {Encoding.ASCII.GetString(encoded).Replace("\r", "\\r").Replace("\n", "\\n")}");
+                 }
+                 catch (Exception ex)
+                 {
+                     Console.WriteLine(ex);
+                 }
+                 finally
+                 {
+                     timer.Start();
+                 }
+             }
+         };
+        
+        timer.Start();
     }
 
     private async Task PropagateCommandAsync(Command command)
@@ -123,7 +123,14 @@ public sealed class RedisContext : IDisposable
                         // TODO: Receiving Ok... Need to investigate
                         if (request.Equals(RespString.Ok)) continue;
                         Console.WriteLine($"Request: {request}");
-                        await ExecuteAsync(request, client);
+                        var response = await ExecuteAsync(request, client);
+
+                        if (response is RespArray array 
+                            && array[0] is RespBulkString first 
+                            && first.Value!.Equals(REPLCONF, StringComparison.OrdinalIgnoreCase))
+                        {
+                            await client.SendAsync(response.Encode(), CancellationToken.None);
+                        }
                     }
                 }
                 catch (Exception ex)
