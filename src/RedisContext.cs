@@ -195,7 +195,26 @@ public sealed class RedisContext : IDisposable
         var encoded = psync.Encode();
         stream.Write(encoded);
         Console.WriteLine($"{ServerInfo.GetRole()}: sent: {Encoding.ASCII.GetString(encoded).Replace("\r", "\\r").Replace("\n", "\\n")}");
-        //EnsureValidReplResponse(stream);
+        EnsureValidPsyncResponse(stream);
+    }
+
+    private static void EnsureValidPsyncResponse(NetworkStream stream)
+    {
+        var buffer = new byte[8192];
+
+        if (stream.Read(buffer) <= 0)
+            throw new InvalidOperationException($"No {PSYNC} response from master");
+
+        var expr = Encoding.ASCII.GetString(buffer);
+        Console.WriteLine($"{ServerInfo.GetRole()}: received: {expr.Replace("\r", "\\r").Replace("\n", "\\n")}");
+        using var reader = new StringReader(expr);
+        
+        var decoded = RespDecoder.DecodeAsync(reader)
+            .ToBlockingEnumerable()
+            .First();
+
+        if (decoded is not RespString && !((RespString)decoded).Value!.Contains(FULLRESYNC))
+            throw new InvalidOperationException($"Invalid {PSYNC} response from master");
     }
 
     private static void EnsureValidReplResponse(NetworkStream stream)
