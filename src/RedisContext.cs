@@ -60,7 +60,7 @@ public sealed class RedisContext : IDisposable
              }
          };
         
-        timer.Start();
+        //timer.Start();
     }
 
     private async Task PropagateCommandAsync(Command command)
@@ -207,9 +207,9 @@ public sealed class RedisContext : IDisposable
 
     private static void EnsureValidPsyncResponse(NetworkStream stream)
     {
-        var buffer = new byte[90];
+        var buffer = new byte[8192];
 
-        if (stream.Read(buffer, 0, 90) <= 0)
+        if (stream.Read(buffer) <= 0)
             throw new InvalidOperationException($"No {PSYNC} response from master");
 
         var expr = Encoding.ASCII.GetString(buffer);

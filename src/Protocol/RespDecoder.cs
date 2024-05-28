@@ -26,7 +26,7 @@ public static class RespDecoder
                 RespArray => await DecodeArray(reader, cancellationToken),
                 RespString => await DecodeString(reader, cancellationToken),
                 RespBulkString => await DecodeBulkString(reader, cancellationToken),
-                //_ => throw new NotSupportedException()
+                _ => throw new NotSupportedException()
             };
         }
     }
@@ -53,6 +53,11 @@ public static class RespDecoder
             count++;
         }
 
+        var output = sb.ToString();
+
+        if (output.StartsWith("REDIS0011", StringComparison.OrdinalIgnoreCase))
+            return new RespBulkString(sb.ToString());
+        
         reader.Read(); // CR
         reader.Read(); // LF
 
