@@ -25,7 +25,7 @@ public static class RespDecoder
                 RespArray => await DecodeArray(reader, cancellationToken),
                 RespString => await DecodeString(reader, cancellationToken),
                 RespBulkString => await DecodeBulkString(reader, cancellationToken),
-                _ => throw new NotSupportedException()
+                //_ => throw new NotSupportedException()
             };
         }
     }
