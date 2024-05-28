@@ -207,7 +207,7 @@ public sealed class RedisContext : IDisposable
 
     private static void EnsureValidPsyncResponse(NetworkStream stream)
     {
-        var buffer = new byte[8192];
+        var buffer = new byte[1024];
 
         if (stream.Read(buffer) <= 0)
             throw new InvalidOperationException($"No {PSYNC} response from master");
@@ -218,9 +218,9 @@ public sealed class RedisContext : IDisposable
         
         var decoded = RespDecoder.DecodeAsync(reader)
             .ToBlockingEnumerable()
-            .First();
+            .ToList();
 
-        if (decoded is not RespString && !((RespString)decoded).Value!.Contains(FULLRESYNC))
+        if (decoded[0] is not RespString && !((RespString)decoded[0]).Value!.Contains(FULLRESYNC))
             throw new InvalidOperationException($"Invalid {PSYNC} response from master");
     }
 
