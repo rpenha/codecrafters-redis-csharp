@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 
 public static class ServerInfo
 {
-    private static readonly Dictionary<string, string> Values = new();
+    private static readonly ConcurrentDictionary<string, string> Values = new();
+    private static long _offset;
 
     private const string Role = "role";
     private const string MasterReplId = "master_replid";
@@ -20,6 +22,12 @@ public static class ServerInfo
     public static void SetSlaveRole()
     {
         Values[Role] = SlaveRole;
+    }
+
+    public static void IncrementOffsetBy(long offset)
+    {
+        Interlocked.Add(ref _offset, offset);
+        Values[MasterReplOffset] = _offset.ToString();
     }
 
     public static string GetRole() => Values[Role];

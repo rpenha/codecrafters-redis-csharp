@@ -38,6 +38,7 @@ static async Task HandleAsync(Socket client, RedisContext context, CancellationT
                     Console.WriteLine(ex);
                 }
             }
+            ServerInfo.IncrementOffsetBy(receivedBytes);
         }
         catch (Exception ex)
         {
