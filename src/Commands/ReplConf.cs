@@ -38,7 +38,7 @@ public sealed class ReplConf : Command
         var result = new RespArray([
             new RespBulkString(REPLCONF),
             new RespBulkString("ACK"),
-            new RespBulkString("0")
+            new RespBulkString(ServerInfo.GetOffset())
         ]);
 
         await _client.SendAsync(result.Encode(), cancellationToken);

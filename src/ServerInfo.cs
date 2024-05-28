@@ -38,7 +38,7 @@ public static class ServerInfo
 
     public static string GetReplId() => Values[MasterReplId];
     
-    public static string GetMasterReplOffset() => Values[MasterReplOffset];
+    public static string GetOffset() => Values[MasterReplOffset];
 
     public static IDictionary<string, string> GetValues() => new ReadOnlyDictionary<string, string>(Values);
 

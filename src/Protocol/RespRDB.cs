@@ -13,7 +13,7 @@ public sealed record RespRDB : RespValue
 
     public override ArraySegment<byte> Encode()
     {
-        var value = new RespString($"FULLRESYNC {ServerInfo.GetReplId()} {ServerInfo.GetMasterReplOffset()}");
+        var value = new RespString($"FULLRESYNC {ServerInfo.GetReplId()} {ServerInfo.GetOffset()}");
         var encoded = value.Encode();
         return new ArraySegment<byte>([..encoded, .."$88"u8, CR, LF, ..EmptyRDB]);
     }
