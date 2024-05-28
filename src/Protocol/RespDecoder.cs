@@ -15,11 +15,12 @@ public static class RespDecoder
     {
         int chr;
 
-        var sb = new StringBuilder();
+        //var sb = new StringBuilder();
 
         while ((chr = reader.Read()) > 0)
         {
-            sb.Append(Convert.ToChar(chr));
+            Console.WriteLine($"Decoder CHR: {chr}");
+            //sb.Append(Convert.ToChar(chr));
             yield return chr switch
             {
                 RespArray => await DecodeArray(reader, cancellationToken),
